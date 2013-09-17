@@ -36,6 +36,34 @@ static int le_myxss;
 zend_class_entry *myxss_ce;
 static zend_object_handlers myxss_obj_handlers;
 
+/* myxss object dtor */
+void myxss_obj_dtor(void *object TSRMLS_DC) {/*{{{*/
+	myxss_object *obj = (myxss_object *)object;
+	zend_hash_destroy(obj->std.properties);
+	FREE_HASHTABLE(obj->std.properties);
+	efree(obj);
+}/*}}}*/
+
+/* myxss object ctor */
+zend_object_value myxss_obj_ctor(zend_class_entry *ce TSRMLS_DC) {/*{{{*/
+	zval *tmp;
+	zend_object_value retval;
+
+	myxss_object *obj = emalloc(sizeof(myxss_object));
+	memset(obj, 0, sizeof(myxss_object));
+	obj->std.ce = ce;
+
+	ALLOC_HASHTABLE(obj->std.properties);
+	zend_hash_init(obj->std.properties, 0, NULL, ZVAL_PTR_DTOR, 0);
+	zend_hash_copy(obj->std.properties, &ce->properties_info,
+		(copy_ctor_func_t)zval_add_ref, (void *)&tmp, sizeof(zval *));
+
+	retval.handle = zend_objects_store_put(obj, NULL, myxss_obj_dtor, NULL TSRMLS_CC);
+	retval.handlers = &myxss_obj_handlers;
+	/* other object initialization */
+	return retval;
+}/*}}}*/
+
 static char *myxss_preg_replace(char *strRegex, char* source, int source_len TSRMLS_DC) {/*{{{*/
 	pcre *reCompiled;
 	pcre_extra *pcreExtra;
@@ -156,12 +184,22 @@ static char *getBadAttrPattern() {/*{{{*/
 }
 /*}}}*/
 
+PHP_METHOD(myxss, __construct) {/*{{{*/
+	zval *object = getThis();
+
+	myxss_object *obj = (myxss_object *)zend_object_store_get_object(object TSRMLS_CC);
+}/*}}}*/
+
+PHP_METHOD(myxss, __destruct) {/*{{{*/
+}/*}}}*/
+
 /* {{{ myxss_functions[]
  *
  * Every user visible function must have an entry in myxss_functions[].
  */
 const zend_function_entry myxss_functions[] = {
-	PHP_FE(confirm_myxss_compiled,	NULL)		/* For testing, remove later. */
+	PHP_ME(myxss, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+	PHP_ME(myxss, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
 	PHP_FE(filter_attributes,	NULL)
 	PHP_FE(filter_tags,	NULL)
 	PHP_FE(filter_characters,	NULL)
@@ -184,7 +222,7 @@ zend_module_entry myxss_module_entry = {
 	PHP_RSHUTDOWN(myxss),	/* Replace with NULL if there's nothing to do at request end */
 	PHP_MINFO(myxss),
 #if ZEND_MODULE_API_NO >= 20010901
-	"0.1", /* Replace with version number for your extension */
+	"1.0", /* Replace with version number for your extension */
 #endif
 	STANDARD_MODULE_PROPERTIES
 };
@@ -222,6 +260,13 @@ PHP_MINIT_FUNCTION(myxss)
 	/* If you have INI entries, uncomment these lines 
 	REGISTER_INI_ENTRIES();
 	*/
+	zend_class_entry ce;
+	/* register dll list object */
+	INIT_CLASS_ENTRY(ce, "myXSSHandler", myxss_functions);
+	myxss_ce = zend_register_internal_class(&ce TSRMLS_CC);
+	myxss_ce->create_object = myxss_obj_ctor;
+	/* create custom handler table */
+	memcpy(&myxss_obj_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	return SUCCESS;
 }
 /* }}} */
@@ -270,27 +315,6 @@ PHP_MINFO_FUNCTION(myxss)
 /* }}} */
 
 
-/* Remove the following function when you have succesfully modified config.m4
-   so that your module can be compiled into PHP, it exists only for testing
-   purposes. */
-
-/* Every user-visible function in PHP should document itself in the source */
-/* {{{ proto string confirm_myxss_compiled(string arg)
-   Return a string to confirm that the module is compiled in */
-PHP_FUNCTION(confirm_myxss_compiled)
-{
-	char *arg = NULL;
-	int arg_len, len;
-	char *strg;
-
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &arg, &arg_len) == FAILURE) {
-		return;
-	}
-
-	len = spprintf(&strg, 0, "Congratulations! You have successfully modified ext/%.78s/config.m4. Module %.78s is now compiled into PHP.", "myxss", arg);
-	RETURN_STRINGL(strg, len, 0);
-}
-/* }}} */
 /* The previous line is meant for vim and emacs, so it can correctly fold and 
    unfold functions in source code. See the corresponding marks just before 
    function definition, where the functions purpose is also documented. Please 

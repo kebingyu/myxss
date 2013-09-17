@@ -22,11 +22,14 @@ echo "$str\n";
  */
 
 /*
-$s = filter_attributes('test javascript more onabort= than two hellos... hello!');
-echo $s . "\n";
-$s = filter_characters('javascript \\x00 = than two hellos... hello!');
-echo $s . "\n";
- */
+$t = microtime(true);
+for ($i=0;$i<1000;$i++) {
 $s = filter_xss('<javascript> more</javascript> onabort\\= <meta>than </meta>two hellos... hello!');
+}
+echo (microtime(true) - $t) . "\n";
+ */
+$o = new myXSSHandler();
+var_dump($o);
+$s = $o->filter_xss(' test <Javascript morept onabort\\= than two hellos... hello!', 1);
 echo $s . "\n";
 ?>

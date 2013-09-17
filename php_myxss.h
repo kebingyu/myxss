@@ -40,14 +40,17 @@ extern zend_module_entry myxss_module_entry;
 #include "TSRM.h"
 #endif
 
+/* obj */
+typedef struct _myxss_object {
+	zend_object std;
+} myxss_object;
+
 PHP_MINIT_FUNCTION(myxss);
 PHP_MSHUTDOWN_FUNCTION(myxss);
 PHP_RINIT_FUNCTION(myxss);
 PHP_RSHUTDOWN_FUNCTION(myxss);
 PHP_MINFO_FUNCTION(myxss);
 
-PHP_FUNCTION(confirm_myxss_compiled);	/* For testing, remove later. */
-PHP_FUNCTION(filter_html);
 PHP_FUNCTION(filter_attributes);
 PHP_FUNCTION(filter_tags);
 PHP_FUNCTION(filter_characters);
