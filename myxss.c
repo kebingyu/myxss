@@ -12,7 +12,7 @@
   | obtain it through the world-wide-web, please send a note to          |
   | license@php.net so we can mail you a copy immediately.               |
   +----------------------------------------------------------------------+
-  | Author:                                                              |
+  | Author: Kebing Yu                                                              |
   +----------------------------------------------------------------------+
 */
 
@@ -94,20 +94,30 @@ static char *myxss_preg_replace(char *strRegex, char* source, int source_len TSR
 }
 /*}}}*/
 
-static char *getBadTagsPattern() {/*{{{*/
+static char *getBadTagsPattern(int unclosed TSRMLS_DC) {/*{{{*/
 	char *badTags[] = {"img","javascript", "vbscript", "expression", "applet", "meta", "xml", "blink", "link", "style", "script", "embed", "object", "iframe", "frame", "frameset", "ilayer", "layer", "bgsound", "title", "base", NULL};
 	char **tag, *concat_buffer, *buffer;
-	int total_len, shared_len, tag_len, cpy_offset;
+	int total_len, shared_len, tag_len, cpy_offset, num_tags;
 	total_len = cpy_offset = 0;
-	shared_len = strlen("<[^>]*>[]*</[^>]*>|<[/]*[^>]*>|");
+	if (0 == unclosed) {
+		shared_len = strlen("<[^>]*>[]*</[^>]*>|<[/]*[^>]*>|");
+		num_tags = 3;
+	} else {
+		shared_len = strlen("<[^>]*>[]*</[^>]*>|<[/]*[^>]*>|<[\\s]*[^>]*|");
+		num_tags = 4;
+	}
 	for (tag = badTags; *tag != NULL; tag++) {
-		total_len += shared_len + 3 * strlen(*tag);
+		total_len += shared_len + num_tags * strlen(*tag);
 	}
 	concat_buffer = (char *)emalloc(total_len + 1);
 	for (tag = badTags; *tag != NULL; tag++) {
-		tag_len = shared_len + 3 * strlen(*tag) + 1;
+		tag_len = shared_len + num_tags * strlen(*tag) + 1;
 		buffer = (char *)emalloc(tag_len);
-		snprintf(buffer, tag_len, "<%s[^>]*>[]*</%s[^>]*>|<[/]*%s[^>]*>|", *tag, *tag, *tag);
+		if (0 == unclosed) {
+			snprintf(buffer, tag_len, "<%s[^>]*>[]*</%s[^>]*>|<[/]*%s[^>]*>|", *tag, *tag, *tag);
+		} else {
+			snprintf(buffer, tag_len, "<%s[^>]*>[]*</%s[^>]*>|<[/]*%s[^>]*>|<[\\s]*%s[^>]*|", *tag, *tag, *tag, *tag);
+		}
 		memcpy(concat_buffer + cpy_offset, buffer, tag_len);
 		efree(buffer);
 		cpy_offset += tag_len - 1;
@@ -136,6 +146,7 @@ static char *getBadAttrPattern() {/*{{{*/
 		efree(buffer);
 		cpy_offset += tag_len - 1;
 	}
+	/* trim the last "|" */
 	concat_buffer[cpy_offset - 1] = '\0';
 	return concat_buffer;
 }
@@ -305,19 +316,20 @@ PHP_FUNCTION(filter_attributes)
 }
 /* }}} */
 
-/* {{{ proto string filter_tags(string source)
+/* {{{ proto string filter_tags(string source [, int unclosed = 0])
    Array exception) */
 PHP_FUNCTION(filter_tags)
 {
 	char *source = NULL;
 	int argc = ZEND_NUM_ARGS();
 	int source_len;
+	long unclosed = 0;
 	char *result;
 
-	if (zend_parse_parameters(argc TSRMLS_CC, "s", &source, &source_len) == FAILURE) 
+	if (zend_parse_parameters(argc TSRMLS_CC, "s|l", &source, &source_len, &unclosed) == FAILURE) 
 		return;
 
-	char *badTagsPattern = getBadTagsPattern();
+	char *badTagsPattern = getBadTagsPattern(unclosed TSRMLS_CC);
 	result = myxss_preg_replace(badTagsPattern, source, source_len TSRMLS_CC);
 	efree(badTagsPattern);
 	if (NULL == result) {
@@ -350,20 +362,21 @@ PHP_FUNCTION(filter_characters)
 }
 /* }}} */
 
-/* {{{ proto string filter_xss(string source)
+/* {{{ proto string filter_xss(string source [, int unclosed = 0])
     */
 PHP_FUNCTION(filter_xss)
 {
 	char *source = NULL;
 	int argc = ZEND_NUM_ARGS();
 	int source_len;
+	long unclosed = 0;
 	char *result;
 
-	if (zend_parse_parameters(argc TSRMLS_CC, "s", &source, &source_len) == FAILURE) 
+	if (zend_parse_parameters(argc TSRMLS_CC, "s|l", &source, &source_len, &unclosed) == FAILURE) 
 		return;
 
 	char *badAttrsPattern = getBadAttrPattern();
-	char *badTagsPattern = getBadTagsPattern();
+	char *badTagsPattern = getBadTagsPattern(unclosed TSRMLS_CC);
 	char *badCharsPattern = "\\x00|\\x01|\\x02|\\x03|\\x04|\\x05|\\x06|\\x07|\\x08|\\x0b|\\x0c|\\x0e|\\x0f|\\x11|\\x12|\\x13|\\x14|\\x15|\\x16|\\x17|\\x18|\\x19";
 	int pattern_len = strlen(badAttrsPattern) + strlen(badTagsPattern) + strlen(badCharsPattern) + 2;
 	char *pattern = (char *)emalloc(pattern_len + 1);
