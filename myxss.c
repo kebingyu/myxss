@@ -33,6 +33,8 @@ ZEND_DECLARE_MODULE_GLOBALS(myxss)
 
 /* True global resources - no need for thread safety here */
 static int le_myxss;
+zend_class_entry *myxss_ce;
+static zend_object_handlers myxss_obj_handlers;
 
 static char *myxss_preg_replace(char *strRegex, char* source, int source_len TSRMLS_DC) {/*{{{*/
 	pcre *reCompiled;
@@ -48,7 +50,9 @@ static char *myxss_preg_replace(char *strRegex, char* source, int source_len TSR
 	int index;
 	char *result;
 
-	reCompiled = pcre_compile(strRegex, 0, &pcreErrorStr, &pcreErrorOffset, NULL);
+	int coptions = 0;
+	coptions |= PCRE_CASELESS; /* case insensitive search */
+	reCompiled = pcre_compile(strRegex, coptions, &pcreErrorStr, &pcreErrorOffset, NULL);
 	if(reCompiled == NULL) {
 		return NULL;
 	}
