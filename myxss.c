@@ -163,17 +163,18 @@ static char *getBadTagsPattern(int unclosed TSRMLS_DC) {/*{{{*/
 static char *getBadAttrPattern() {/*{{{*/
 	char *badAttrs[] = {"onabort\\=","onevent\\=", "onactivate\\=", "onafterprint\\(", "\"onafterupdate\"", "onbeforeactivate\\=", "onbeforecopy\\=", "onbeforecut\\=", "onbeforedeactivate\\=", "onbeforeeditfocus\\=", "onbeforepaste\\=", "onbeforeprint\\=", "onbeforeunload\\=", "=\"onbeforeupdate\"", "onblur\\=", "onbounce\\=", "=\"oncellchange\"", "onchange\\=", "onclick\\=", "oncontextmenu\\=", "oncontrolselect\\=", "oncopy\\=", "oncut\\=", "ondataavaible\\=", "ondatasetchanged\\=", "\"ondatasetcomplete\"=", "ondblclick\\=", "ondeactivate\\=", "ondrag\\=", "ondragdrop\\=", "ondragend\\=", "ondragenter\\=", "ondragleave\\=", "ondragover\\=", "ondragstart\\=", "ondrop\\=", "onerror\\=", "onerrorupdate\\=", "onfilterupdate\\=", "onfinish\\=", "onfocus\\=", "onfocusin\\=", "onfocusout\\=", "onhelp\\=", "onkeydown\\=", "onkeypress\\=", "onkeyup\\=", "onlayoutcomplete\\=", "onload\\=", "onlosecapture\\=", "onmousedown\\=", "onmouseenter\\=", "onmouseleave\\=", "onmousemove\\=", "onmoveout\\=", "onmouseover\\=", "onmouseup\\=", "onmousewheel\\=", "onmove\\=", "onmoveend\\=", "onmovestart\\=", "onpaste\\=", "onpropertychange\\=", "onreadystatechange\\=", "onreset\\=", "onresize\\=", "onresizeend\\=", "onresizestart\\=", "onrowexit\\=", "onrowsdelete\\=", "onrowsinserted\\=", "onscroll\\=", "onselect\\=", "onselectionchange\\=", "onselectstart\\=", "onstart\\=", "onstop\\=", "onsubmit\\=", "onunload\\=", "\"javascript\"", "void\\(", "document.forms", NULL};
 	char **tag, *concat_buffer, *buffer;
-	int total_len, shared_len, tag_len, cpy_offset;
+	int total_len, shared_len, tag_len, cpy_offset, num_tags;
 	total_len = cpy_offset = 0;
-	shared_len = strlen("[\\s.]*=[\\s]*\"[^\"]*\"|");
+	num_tags = 2;
+	shared_len = strlen("|[\\s.]*=[\\s]*\"[^\"]*\"|");
 	for (tag = badAttrs; *tag != NULL; tag++) {
-		total_len += shared_len + strlen(*tag);
+		total_len += shared_len + num_tags * strlen(*tag);
 	}
 	concat_buffer = (char *)emalloc(total_len + 1);
 	for (tag = badAttrs; *tag != NULL; tag++) {
-		tag_len = shared_len + strlen(*tag) + 1;
+		tag_len = shared_len + num_tags * strlen(*tag) + 1;
 		buffer = (char *)emalloc(tag_len);
-		snprintf(buffer, tag_len, "%s[\\s.]*=[\\s]*\"[^\"]*\"|", *tag);
+		snprintf(buffer, tag_len, "%s|%s[\\s.]*=[\\s]*\"[^\"]*\"|", *tag, *tag);
 		memcpy(concat_buffer + cpy_offset, buffer, tag_len);
 		efree(buffer);
 		cpy_offset += tag_len - 1;

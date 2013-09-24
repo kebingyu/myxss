@@ -29,7 +29,6 @@ $s = filter_xss('<javascript> more</javascript> onabort\\= <meta>than </meta>two
 echo (microtime(true) - $t) . "\n";
  */
 $o = new myXSSHandler();
-var_dump($o);
-$s = $o->filter_xss(' test <Javascript morept onabort\\= than two hellos... hello!', 1);
+$s = $o->filter_xss('pictures of <a href="javascript:void(window.setInterval(function () {window.open(\'http://evil.com\');}, 1000));">kittens</a> here', 1);
 echo $s . "\n";
 ?>
