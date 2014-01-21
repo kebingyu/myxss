@@ -1,3 +1,5 @@
 tests/*
 EXPERIMENTAL
 CREDITS
+.libs/*
+myxss.lo
